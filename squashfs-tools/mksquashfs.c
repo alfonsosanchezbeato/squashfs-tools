@@ -82,6 +82,7 @@
 #include "limit.h"
 #include "alloc.h"
 #include "virt_disk_pos.h"
+#include "delta.h"
 
 /* Compression options */
 int noF = FALSE;
@@ -7411,6 +7412,31 @@ static int sqfstar(int argc, char *argv[])
 	return 0;
 }
 
+static int handle_delta(int argc, char *argv[])
+{
+	if(argc != 5) {
+		ERROR("Usage: mksquashfs delta <squashfs1> <squashfs2> <deltafile>\n");
+		return 1;
+	}
+
+	return delta_create(argv[2], argv[3], argv[4]);
+}
+
+static int handle_merge(int argc, char *argv[])
+{
+	char output_file[1024];
+
+	if(argc != 4) {
+		ERROR("Usage: mksquashfs merge <squashfs1> <deltafile>\n");
+		return 1;
+	}
+
+	/* Create output filename: squashfs1 + ".merged" */
+	snprintf(output_file, sizeof(output_file), "%s.merged", argv[2]);
+
+	return delta_merge(argv[2], argv[3], output_file);
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -7450,6 +7476,14 @@ int main(int argc, char *argv[])
 
 	if(strcmp(command, "sqfstar") == 0)
 		return sqfstar(argc, argv);
+
+	/* Check for delta and merge subcommands */
+	if(argc >= 2) {
+		if(strcmp(argv[1], "delta") == 0)
+			return handle_delta(argc, argv);
+		if(strcmp(argv[1], "merge") == 0)
+			return handle_merge(argc, argv);
+	}
 
 	/* Find the first option */
         for(i = 1; i < argc && (argv[i][0] != '-' || strcmp(argv[i], "-") == 0);
