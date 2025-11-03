@@ -21,6 +21,8 @@
 #include "delta.h"
 #include "mksquashfs_error.h"
 
+#define BUFFER_SIZE (1024 * 1024)  /* 1MB buffer for I/O operations */
+
 /*
  * Create a delta file containing the differences between two SquashFS files
  * The delta contains the entire second file as uncompressed data with metadata
@@ -30,7 +32,7 @@ int delta_create(const char *squashfs1, const char *squashfs2, const char *delta
 	int fd1 = -1, fd2 = -1, fdout = -1;
 	struct stat st1, st2;
 	struct delta_header header;
-	unsigned char *buf1 = NULL, *buf2 = NULL;
+	unsigned char *buf2 = NULL;
 	long long offset;
 	int res = -1;
 	size_t read_size;
@@ -94,7 +96,7 @@ int delta_create(const char *squashfs1, const char *squashfs2, const char *delta
 	}
 
 	/* Copy entire squashfs2 file to delta file */
-	buf2 = malloc(1024 * 1024); /* 1MB buffer */
+	buf2 = malloc(BUFFER_SIZE);
 	if(!buf2) {
 		ERROR("Failed to allocate buffer\n");
 		goto cleanup;
@@ -102,7 +104,7 @@ int delta_create(const char *squashfs1, const char *squashfs2, const char *delta
 
 	offset = 0;
 	while(offset < st2.st_size) {
-		read_size = (st2.st_size - offset > 1024 * 1024) ? 1024 * 1024 : (st2.st_size - offset);
+		read_size = (st2.st_size - offset > BUFFER_SIZE) ? BUFFER_SIZE : (st2.st_size - offset);
 		bytes_read = read(fd2, buf2, read_size);
 		if(bytes_read < 0) {
 			ERROR("Failed to read from %s: %s\n", squashfs2, strerror(errno));
@@ -127,8 +129,6 @@ int delta_create(const char *squashfs1, const char *squashfs2, const char *delta
 	res = 0;
 
 cleanup:
-	if(buf1)
-		free(buf1);
 	if(buf2)
 		free(buf2);
 	if(fd1 >= 0)
@@ -217,7 +217,7 @@ int delta_merge(const char *squashfs1, const char *deltafile, const char *output
 	}
 
 	/* Allocate buffer */
-	buf = malloc(1024 * 1024); /* 1MB buffer */
+	buf = malloc(BUFFER_SIZE);
 	if(!buf) {
 		ERROR("Failed to allocate buffer\n");
 		goto cleanup;
@@ -226,7 +226,7 @@ int delta_merge(const char *squashfs1, const char *deltafile, const char *output
 	/* Copy data from delta file to output */
 	offset = 0;
 	while(offset < entry.size) {
-		read_size = (entry.size - offset > 1024 * 1024) ? 1024 * 1024 : (entry.size - offset);
+		read_size = (entry.size - offset > BUFFER_SIZE) ? BUFFER_SIZE : (entry.size - offset);
 		bytes_read = read(fddelta, buf, read_size);
 		if(bytes_read < 0) {
 			ERROR("Failed to read from delta file: %s\n", strerror(errno));

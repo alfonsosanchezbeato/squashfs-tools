@@ -7424,7 +7424,9 @@ static int handle_delta(int argc, char *argv[])
 
 static int handle_merge(int argc, char *argv[])
 {
-	char output_file[1024];
+	char *output_file;
+	int res;
+	size_t output_len;
 
 	if(argc != 4) {
 		ERROR("Usage: mksquashfs merge <squashfs1> <deltafile>\n");
@@ -7432,9 +7434,18 @@ static int handle_merge(int argc, char *argv[])
 	}
 
 	/* Create output filename: squashfs1 + ".merged" */
-	snprintf(output_file, sizeof(output_file), "%s.merged", argv[2]);
+	output_len = strlen(argv[2]) + strlen(".merged") + 1;
+	output_file = malloc(output_len);
+	if(!output_file) {
+		ERROR("Failed to allocate memory for output filename\n");
+		return 1;
+	}
 
-	return delta_merge(argv[2], argv[3], output_file);
+	snprintf(output_file, output_len, "%s.merged", argv[2]);
+	res = delta_merge(argv[2], argv[3], output_file);
+	free(output_file);
+
+	return res;
 }
 
 
